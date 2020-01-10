@@ -7,9 +7,6 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 
-import static mospan.db_log_with_hierarchy.LogUtils.COMPLETED_STATUS;
-import static mospan.db_log_with_hierarchy.LogUtils.FAILED_STATUS;
-import static mospan.db_log_with_hierarchy.LogUtils.RUNNING_STATUS;
 import static mospan.db_log_with_hierarchy.LogUtils.insertIntoLogTable;
 
 public final class LogEntry {
@@ -19,19 +16,19 @@ public final class LogEntry {
     private final Long parentLogId;
     private final java.sql.Timestamp startTimestamp;
     private java.sql.Timestamp endTimestamp;
-    private String status;
+    private LogStatus logStatus;
     private Long rowCount;
     private String comments;
     private String exceptionMessage;
 
-    LogEntry(String actionName, long logId, Long parentLogId, Timestamp startTimestamp, Timestamp endTimestamp, String status,
+    LogEntry(String actionName, long logId, Long parentLogId, Timestamp startTimestamp, Timestamp endTimestamp, LogStatus logStatus,
              Long rowCount, String comments, String exceptionMessage) {
         this.actionName = actionName;
         this.logId = logId;
         this.parentLogId = parentLogId;
         this.startTimestamp = startTimestamp;
         this.endTimestamp = endTimestamp;
-        this.status = status;
+        this.logStatus = logStatus;
         this.rowCount = rowCount;
         this.comments = comments;
         this.exceptionMessage = exceptionMessage;
@@ -45,7 +42,7 @@ public final class LogEntry {
                 ", parentLogId=" + parentLogId +
                 ", startTimestamp=" + startTimestamp +
                 ", endTimestamp=" + endTimestamp +
-                ", status='" + status + '\'' +
+                ", status='" + logStatus.getStatus() + '\'' +
                 ", rowCount=" + rowCount +
                 ", comments='" + comments + '\'' +
                 ", exceptionMessage='" + exceptionMessage + '\'' +
@@ -56,20 +53,20 @@ public final class LogEntry {
         long newLogId = LogUtils.getLogSequenceNextVal();
         Timestamp startTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
         LogEntry newLogEntry = new LogEntry(actionName, newLogId, logId, startTimestamp, null,
-                RUNNING_STATUS, null, comments, null);
+                LogStatus.RUNNING, null, comments, null);
         insertIntoLogTable(newLogEntry);
         return newLogEntry;
     }
 
     public void closeLevelSuccess(final String comments, final Long rowCount) {
-        closeLevel(COMPLETED_STATUS, null, comments, rowCount, new java.sql.Timestamp(System.currentTimeMillis()));
+        closeLevel(LogStatus.COMPLETED, null, comments, rowCount, new java.sql.Timestamp(System.currentTimeMillis()));
     }
 
     public void closeLevelFail(final String comments, final Exception exception, final Long rowCount) {
-        closeLevel(FAILED_STATUS, exception, comments, rowCount, new java.sql.Timestamp(System.currentTimeMillis()));
+        closeLevel(LogStatus.FAILED, exception, comments, rowCount, new java.sql.Timestamp(System.currentTimeMillis()));
     }
 
-    void closeLevel(final String status, final Exception exception,
+    void closeLevel(final LogStatus logStatus, final Exception exception,
                     final String comments, final Long rowCount, final Timestamp endTimestamp) {
         final String UPDATE_LOG_TABLE_SQL = "UPDATE LOG_TABLE \n" +
                 "        SET    status            = ?\n" +
@@ -87,12 +84,12 @@ public final class LogEntry {
         }
         setExceptionMessage(exceptionMessage);
         setComments(comments);
-        setStatus(status);
+        setLogStatus(logStatus);
         setRowCount(rowCount);
         setEndTimestamp(endTimestamp);
         try (Connection connection = LogDataSource.getConnection();
              final PreparedStatement preparedStatement = connection.prepareStatement(UPDATE_LOG_TABLE_SQL)) {
-            preparedStatement.setString(1, status);
+            preparedStatement.setString(1, logStatus.getStatus());
             preparedStatement.setString(2, exceptionMessage);
             preparedStatement.setObject(3, rowCount);
             preparedStatement.setTimestamp(4, endTimestamp);
@@ -124,8 +121,8 @@ public final class LogEntry {
         return endTimestamp;
     }
 
-    public String getStatus() {
-        return status;
+    public String getLogStatus() {
+        return logStatus.getStatus();
     }
 
     public Long getRowCount() {
@@ -148,8 +145,8 @@ public final class LogEntry {
         this.endTimestamp = endTimestamp;
     }
 
-    private void setStatus(String status) {
-        this.status = status;
+    private void setLogStatus(LogStatus logStatus) {
+        this.logStatus = logStatus;
     }
 
     private void setRowCount(Long rowCount) {

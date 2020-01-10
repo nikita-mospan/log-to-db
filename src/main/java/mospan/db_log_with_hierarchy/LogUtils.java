@@ -8,9 +8,6 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 
 public class LogUtils {
-    static final String RUNNING_STATUS = "R";
-    static final String COMPLETED_STATUS = "C";
-    static final String FAILED_STATUS = "F";
 
     private LogUtils() {
         throw new RuntimeException("class LogUtils contains static methods and must not be instantiated!");
@@ -30,26 +27,27 @@ public class LogUtils {
     public static LogEntry startLog(final String logInstanceName) {
         long logId = LogUtils.getLogSequenceNextVal();
         Timestamp startTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
-        LogEntry logEntry = new LogEntry(logInstanceName, logId, null, startTimestamp, null, RUNNING_STATUS,
-                null, null, null);
         insertIntoLogInstances(logId, logInstanceName, startTimestamp);
+        LogEntry logEntry = new LogEntry(logInstanceName, logId, null, startTimestamp, null, LogStatus.RUNNING,
+                null, null, null);
+
         insertIntoLogTable(logEntry);
         return logEntry;
     }
 
     public static void stopLogSuccess(final LogEntry startLogEntry) {
-        stopLog(startLogEntry, COMPLETED_STATUS, null);
+        stopLog(startLogEntry, LogStatus.COMPLETED, null);
     }
 
     public static void stopLogFail(final LogEntry startLogEntry, final Exception exception) {
-        stopLog(startLogEntry, FAILED_STATUS, exception);
+        stopLog(startLogEntry, LogStatus.FAILED, exception);
     }
 
-    private static void stopLog(final LogEntry startLogEntry, final String status, final Exception exception) {
+    private static void stopLog(final LogEntry startLogEntry, final LogStatus logStatus, final Exception exception) {
         final long startLogId = startLogEntry.getLogId();
         final Timestamp endTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
-        closeLogInstance(status, endTimestamp, startLogId);
-        startLogEntry.closeLevel(status, exception, null, null, endTimestamp);
+        closeLogInstance(logStatus.getStatus(), endTimestamp, startLogId);
+        startLogEntry.closeLevel(logStatus, exception, null, null, endTimestamp);
     }
 
     private static void closeLogInstance(final String status, final Timestamp endTimestamp, final long startLogId) {
@@ -64,7 +62,6 @@ public class LogUtils {
             throw new RuntimeException(e);
         }
     }
-
 
     static void insertIntoLogTable(LogEntry logEntry) {
         final String SQL_INSERT = "INSERT INTO LOG_TABLE (action_name,\n" +
@@ -83,7 +80,7 @@ public class LogUtils {
             preparedStatement.setObject(3, logEntry.getParentLogId());
             preparedStatement.setTimestamp(4, logEntry.getStartTimestamp());
             preparedStatement.setTimestamp(5, logEntry.getEndTimestamp());
-            preparedStatement.setString(6, logEntry.getStatus());
+            preparedStatement.setString(6, logEntry.getLogStatus());
             preparedStatement.setObject(7, logEntry.getRowCount());
             preparedStatement.setString(8, logEntry.getComments());
             preparedStatement.setString(9, logEntry.getExceptionMessage());
@@ -103,7 +100,7 @@ public class LogUtils {
             preparedStatement.setLong(1, startLogId);
             preparedStatement.setString(2, logInstanceName);
             preparedStatement.setTimestamp(3, startTimestamp);
-            preparedStatement.setString(4, RUNNING_STATUS);
+            preparedStatement.setString(4, LogStatus.RUNNING.getStatus());
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
