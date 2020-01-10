@@ -71,7 +71,7 @@ public final class LogEntry {
                 "              ,exception_message = ?\n" +
                 "              ,row_count         = ?\n" +
                 "              ,end_ts            = ?\n" +
-                "              ,comments            = comments || ?\n" +
+                "              ,comments          = coalesce(comments, '') || coalesce(?, '')\n" +
                 "        WHERE  log_id = ?";
         String exceptionMessage = null;
         if (exception != null) {
@@ -81,7 +81,7 @@ public final class LogEntry {
             exceptionMessage = sw.toString();
         }
         setExceptionMessage(exceptionMessage);
-        setComments(comments);
+        setComments(this.comments + comments);
         setLogStatus(logStatus);
         setRowCount(rowCount);
         setEndTimestamp(endTimestamp);
@@ -93,6 +93,20 @@ public final class LogEntry {
             preparedStatement.setTimestamp(4, endTimestamp);
             preparedStatement.setString(5, comments);
             preparedStatement.setLong(6, logId);
+            preparedStatement.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void addComments(final String comments) {
+        final String UPDATE_LOG_TABLE_SQL = "UPDATE LOG_TABLE SET comments = comments || ?\n" +
+                "        WHERE  log_id = ?";
+        setComments(this.comments + comments);
+        try (Connection connection = LogDataSource.getConnection();
+             final PreparedStatement preparedStatement = connection.prepareStatement(UPDATE_LOG_TABLE_SQL)) {
+            preparedStatement.setString(1, comments);
+            preparedStatement.setLong(2, logId);
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
