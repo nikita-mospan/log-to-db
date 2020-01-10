@@ -56,12 +56,12 @@ public final class LogEntry {
         return newLogEntry;
     }
 
-    public void closeLevelSuccess(final String comments, final Long rowCount) {
-        closeLevel(LogStatus.COMPLETED, null, comments, rowCount, new java.sql.Timestamp(System.currentTimeMillis()));
+    public void closeLevelSuccess(final String comments) {
+        closeLevel(LogStatus.COMPLETED, null, comments, null, new java.sql.Timestamp(System.currentTimeMillis()));
     }
 
-    public void closeLevelFail(final String comments, final Exception exception, final Long rowCount) {
-        closeLevel(LogStatus.FAILED, exception, comments, rowCount, new java.sql.Timestamp(System.currentTimeMillis()));
+    public void closeLevelFail(final String comments, final Exception exception) {
+        closeLevel(LogStatus.FAILED, exception, comments, null, new java.sql.Timestamp(System.currentTimeMillis()));
     }
 
     void closeLevel(final LogStatus logStatus, final Exception exception,
@@ -104,22 +104,16 @@ public final class LogEntry {
                 "log_id,\n" +
                 "parent_log_id,\n" +
                 "start_ts,\n" +
-                "end_ts,\n" +
                 "status,\n" +
-                "row_count,\n" +
-                "comments,\n" +
-                "exception_message) VALUES (?,?,?,?,?,?,?,?,?)";
+                "comments) VALUES (?,?,?,?,?,?)";
         try (final Connection connection = LogDataSource.getConnection();
              final PreparedStatement preparedStatement = connection.prepareStatement(SQL_INSERT)) {
             preparedStatement.setString(1, actionName);
             preparedStatement.setLong(2, logId);
             preparedStatement.setObject(3, parentLogId);
             preparedStatement.setTimestamp(4, startTimestamp);
-            preparedStatement.setTimestamp(5, endTimestamp);
-            preparedStatement.setString(6, logStatus.getStatus());
-            preparedStatement.setObject(7, rowCount);
-            preparedStatement.setString(8, comments);
-            preparedStatement.setString(9, exceptionMessage);
+            preparedStatement.setString(5, logStatus.getStatus());
+            preparedStatement.setString(6, comments);
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);

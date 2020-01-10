@@ -34,10 +34,10 @@ public class LogUtilsTest {
         logger.info("start_log_id: " + startLogEntry.getLogId());
         final LogEntry logEntry1 = startLogEntry.openLevel("Action 1", "Some comments");
         final LogEntry logEntry2 = logEntry1.openLevel("Action 2", "Some comments");
-        logEntry2.closeLevelSuccess(null, null);
+        logEntry2.closeLevelSuccess(null);
         final LogEntry logEntry3 = startLogEntry.openLevel("Action 3", "Some comments");
-        logEntry3.closeLevelSuccess(null, null);
-        logEntry1.closeLevelSuccess(null, null);
+        logEntry3.closeLevelSuccess(null);
+        logEntry1.closeLevelSuccess(null);
         LogUtils.stopLogSuccess(startLogEntry);
     }
 
