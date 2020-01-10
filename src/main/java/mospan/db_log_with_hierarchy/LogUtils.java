@@ -30,8 +30,7 @@ public class LogUtils {
         insertIntoLogInstances(logId, logInstanceName, startTimestamp);
         LogEntry logEntry = new LogEntry(logInstanceName, logId, null, startTimestamp, null, LogStatus.RUNNING,
                 null, null, null);
-
-        insertIntoLogTable(logEntry);
+        logEntry.insertIntoLogTable();
         return logEntry;
     }
 
@@ -57,33 +56,6 @@ public class LogUtils {
             preparedStatement.setString(1, status);
             preparedStatement.setTimestamp(2, endTimestamp);
             preparedStatement.setLong(3, startLogId);
-            preparedStatement.executeUpdate();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    static void insertIntoLogTable(LogEntry logEntry) {
-        final String SQL_INSERT = "INSERT INTO LOG_TABLE (action_name,\n" +
-                "log_id,\n" +
-                "parent_log_id,\n" +
-                "start_ts,\n" +
-                "end_ts,\n" +
-                "status,\n" +
-                "row_count,\n" +
-                "comments,\n" +
-                "exception_message) VALUES (?,?,?,?,?,?,?,?,?)";
-        try (final Connection connection = LogDataSource.getConnection();
-             final PreparedStatement preparedStatement = connection.prepareStatement(SQL_INSERT)) {
-            preparedStatement.setString(1, logEntry.getActionName());
-            preparedStatement.setLong(2, logEntry.getLogId());
-            preparedStatement.setObject(3, logEntry.getParentLogId());
-            preparedStatement.setTimestamp(4, logEntry.getStartTimestamp());
-            preparedStatement.setTimestamp(5, logEntry.getEndTimestamp());
-            preparedStatement.setString(6, logEntry.getLogStatus());
-            preparedStatement.setObject(7, logEntry.getRowCount());
-            preparedStatement.setString(8, logEntry.getComments());
-            preparedStatement.setString(9, logEntry.getExceptionMessage());
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);

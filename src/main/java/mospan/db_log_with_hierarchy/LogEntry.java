@@ -7,8 +7,6 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 
-import static mospan.db_log_with_hierarchy.LogUtils.insertIntoLogTable;
-
 public final class LogEntry {
 
     private final String actionName;
@@ -54,7 +52,7 @@ public final class LogEntry {
         Timestamp startTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
         LogEntry newLogEntry = new LogEntry(actionName, newLogId, logId, startTimestamp, null,
                 LogStatus.RUNNING, null, comments, null);
-        insertIntoLogTable(newLogEntry);
+        newLogEntry.insertIntoLogTable();
         return newLogEntry;
     }
 
@@ -101,40 +99,35 @@ public final class LogEntry {
         }
     }
 
-    public String getActionName() {
-        return actionName;
+    void insertIntoLogTable() {
+        final String SQL_INSERT = "INSERT INTO LOG_TABLE (action_name,\n" +
+                "log_id,\n" +
+                "parent_log_id,\n" +
+                "start_ts,\n" +
+                "end_ts,\n" +
+                "status,\n" +
+                "row_count,\n" +
+                "comments,\n" +
+                "exception_message) VALUES (?,?,?,?,?,?,?,?,?)";
+        try (final Connection connection = LogDataSource.getConnection();
+             final PreparedStatement preparedStatement = connection.prepareStatement(SQL_INSERT)) {
+            preparedStatement.setString(1, actionName);
+            preparedStatement.setLong(2, logId);
+            preparedStatement.setObject(3, parentLogId);
+            preparedStatement.setTimestamp(4, startTimestamp);
+            preparedStatement.setTimestamp(5, endTimestamp);
+            preparedStatement.setString(6, logStatus.getStatus());
+            preparedStatement.setObject(7, rowCount);
+            preparedStatement.setString(8, comments);
+            preparedStatement.setString(9, exceptionMessage);
+            preparedStatement.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public long getLogId() {
         return logId;
-    }
-
-    public Long getParentLogId() {
-        return parentLogId;
-    }
-
-    public Timestamp getStartTimestamp() {
-        return startTimestamp;
-    }
-
-    public Timestamp getEndTimestamp() {
-        return endTimestamp;
-    }
-
-    public String getLogStatus() {
-        return logStatus.getStatus();
-    }
-
-    public Long getRowCount() {
-        return rowCount;
-    }
-
-    public String getComments() {
-        return comments;
-    }
-
-    public String getExceptionMessage() {
-        return exceptionMessage;
     }
 
     private void setExceptionMessage(String exceptionMessage) {
