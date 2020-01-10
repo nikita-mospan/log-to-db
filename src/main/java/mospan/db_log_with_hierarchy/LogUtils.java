@@ -6,8 +6,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class LogUtils {
+
+    static final ExecutorService logExecutorService = Executors.newFixedThreadPool(10);
 
     private LogUtils() {
         throw new RuntimeException("class LogUtils contains static methods and must not be instantiated!");
@@ -34,19 +41,62 @@ public class LogUtils {
         return logEntry;
     }
 
+    public static Future<LogEntry> startLogAsync(final String logInstanceName) {
+        long logId = LogUtils.getLogSequenceNextVal();
+        Timestamp startTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
+        return CompletableFuture.supplyAsync(() -> {
+            insertIntoLogInstances(logId, logInstanceName, startTimestamp);
+            LogEntry logEntry = new LogEntry(logInstanceName, logId, null, startTimestamp, null, LogStatus.RUNNING,
+                    null, null, null);
+            logEntry.insertIntoLogTable();
+            return logEntry;
+        }, logExecutorService);
+    }
+
     public static void stopLogSuccess(final LogEntry startLogEntry) {
-        stopLog(startLogEntry, LogStatus.COMPLETED, null);
+        final Timestamp endTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
+        stopLogSuccess(startLogEntry, endTimestamp);
+    }
+
+    public static void stopLogSuccessAsync(final Future<LogEntry> startLogEntryFuture) {
+        final Timestamp endTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
+        CompletableFuture.runAsync(() -> {
+            try {
+                stopLogSuccess(startLogEntryFuture.get(), endTimestamp);
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        }, logExecutorService);
+    }
+
+    private static void stopLogSuccess(final LogEntry startLogEntry, final Timestamp endTimestamp) {
+        stopLog(startLogEntry, LogStatus.COMPLETED, null, endTimestamp);
     }
 
     public static void stopLogFail(final LogEntry startLogEntry, final Exception exception) {
-        stopLog(startLogEntry, LogStatus.FAILED, exception);
+        final Timestamp endTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
+        stopLogFail(startLogEntry, exception, endTimestamp);
     }
 
-    private static void stopLog(final LogEntry startLogEntry, final LogStatus logStatus, final Exception exception) {
-        final long startLogId = startLogEntry.getLogId();
+    public static void stopLogFailAsync(final Future<LogEntry> startLogEntryFuture, final Exception exception) {
         final Timestamp endTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
-        closeLogInstance(logStatus.getStatus(), endTimestamp, startLogId);
+        CompletableFuture.runAsync(() -> {
+            try {
+                stopLogFail(startLogEntryFuture.get(), exception, endTimestamp);
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        }, logExecutorService);
+    }
+
+    private static void stopLogFail(final LogEntry startLogEntry, final Exception exception, final Timestamp endTimestamp) {
+        stopLog(startLogEntry, LogStatus.FAILED, exception, endTimestamp);
+    }
+
+    private static void stopLog(final LogEntry startLogEntry, final LogStatus logStatus, final Exception exception, final Timestamp endTimestamp) {
+        final long startLogId = startLogEntry.getLogId();
         startLogEntry.closeLevel(logStatus, exception, null, null, endTimestamp);
+        closeLogInstance(logStatus.getStatus(), endTimestamp, startLogId);
     }
 
     private static void closeLogInstance(final String status, final Timestamp endTimestamp, final long startLogId) {

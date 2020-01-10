@@ -6,6 +6,9 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 public final class LogEntry {
 
@@ -50,18 +53,56 @@ public final class LogEntry {
     public LogEntry openLevel(final String actionName, final String comments) {
         long newLogId = LogUtils.getLogSequenceNextVal();
         Timestamp startTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
+        return openLevel(actionName, newLogId, comments, startTimestamp);
+    }
+
+    private LogEntry openLevel(final String actionName, long newLogId, final String comments, Timestamp startTimestamp) {
         LogEntry newLogEntry = new LogEntry(actionName, newLogId, logId, startTimestamp, null,
                 LogStatus.RUNNING, null, comments, null);
         newLogEntry.insertIntoLogTable();
         return newLogEntry;
     }
 
+    public static Future<LogEntry> openLevelAsync(Future<LogEntry> logEntryFuture, final String actionName, final String comments) {
+        long newLogId = LogUtils.getLogSequenceNextVal();
+        Timestamp startTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return logEntryFuture.get().openLevel(actionName, newLogId, comments, startTimestamp);
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        }, LogUtils.logExecutorService);
+    }
+
     public void closeLevelSuccess(final String comments) {
         closeLevel(LogStatus.COMPLETED, null, comments, null, new java.sql.Timestamp(System.currentTimeMillis()));
     }
 
+    public static void closeLevelSuccessAsync(Future<LogEntry> logEntryFuture, final String comments) {
+        final Timestamp endTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
+        CompletableFuture.runAsync(() -> {
+            try {
+                logEntryFuture.get().closeLevel(LogStatus.COMPLETED, null, comments, null, endTimestamp);
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        }, LogUtils.logExecutorService);
+    }
+
     public void closeLevelFail(final String comments, final Exception exception) {
         closeLevel(LogStatus.FAILED, exception, comments, null, new java.sql.Timestamp(System.currentTimeMillis()));
+    }
+
+    public static void closeLevelFailAsync(Future<LogEntry> logEntryFuture, final String comments, final Exception exception) {
+        final Timestamp endTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
+        CompletableFuture.runAsync(() -> {
+            try {
+                logEntryFuture.get().closeLevel(LogStatus.FAILED, exception, comments, null, endTimestamp);
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        }, LogUtils.logExecutorService);
     }
 
     void closeLevel(final LogStatus logStatus, final Exception exception,
@@ -111,6 +152,16 @@ public final class LogEntry {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static void addCommentsAsync(final Future<LogEntry> logEntryFuture, final String comments) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                logEntryFuture.get().addComments(comments);
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     void insertIntoLogTable() {

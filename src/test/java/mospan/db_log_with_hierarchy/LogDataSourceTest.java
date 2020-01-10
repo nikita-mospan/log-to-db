@@ -1,6 +1,5 @@
-package db_log_with_hierarchy;
+package mospan.db_log_with_hierarchy;
 
-import mospan.db_log_with_hierarchy.LogUtils;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
