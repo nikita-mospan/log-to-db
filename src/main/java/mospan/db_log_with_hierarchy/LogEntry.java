@@ -164,6 +164,16 @@ public final class LogEntry {
         });
     }
 
+    public void info(final String actionName, final String comments) {
+        final LogEntry infoLogEntry = openLevel(actionName, comments);
+        infoLogEntry.closeLevelSuccess(null);
+    }
+
+    public static void infoAsync(Future<LogEntry> logEntryFuture, final String actionName, final String comments) {
+        final Future<LogEntry> infoLogEntryFuture = openLevelAsync(logEntryFuture, actionName, comments);
+        closeLevelSuccessAsync(infoLogEntryFuture, null);
+    }
+
     void insertIntoLogTable() {
         final String SQL_INSERT = "INSERT INTO LOG_TABLE (action_name,\n" +
                 "log_id,\n" +
