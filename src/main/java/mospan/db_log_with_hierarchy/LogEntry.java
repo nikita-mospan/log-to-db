@@ -18,19 +18,17 @@ public final class LogEntry {
     private final java.sql.Timestamp startTimestamp;
     private java.sql.Timestamp endTimestamp;
     private LogStatus logStatus;
-    private Long rowCount;
     private String comments;
     private String exceptionMessage;
 
     LogEntry(String actionName, long logId, Long parentLogId, Timestamp startTimestamp, Timestamp endTimestamp, LogStatus logStatus,
-             Long rowCount, String comments, String exceptionMessage) {
+             String comments, String exceptionMessage) {
         this.actionName = actionName;
         this.logId = logId;
         this.parentLogId = parentLogId;
         this.startTimestamp = startTimestamp;
         this.endTimestamp = endTimestamp;
         this.logStatus = logStatus;
-        this.rowCount = rowCount;
         this.comments = comments;
         this.exceptionMessage = exceptionMessage;
     }
@@ -44,96 +42,58 @@ public final class LogEntry {
                 ", startTimestamp=" + startTimestamp +
                 ", endTimestamp=" + endTimestamp +
                 ", status='" + logStatus.getStatus() + '\'' +
-                ", rowCount=" + rowCount +
                 ", comments='" + comments + '\'' +
                 ", exceptionMessage='" + exceptionMessage + '\'' +
                 '}';
     }
 
-    public LogEntry openLevel(final String actionName, final String comments) {
+    public LogEntry createChild(final String actionName, final String comments) {
         long newLogId = LogUtils.getLogSequenceNextVal();
         Timestamp startTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
-        return openLevel(actionName, newLogId, comments, startTimestamp);
+        return createChild(actionName, newLogId, comments, startTimestamp);
     }
 
-    private LogEntry openLevel(final String actionName, long newLogId, final String comments, Timestamp startTimestamp) {
+    LogEntry createChild(final String actionName, long newLogId, final String comments, Timestamp startTimestamp) {
         LogEntry newLogEntry = new LogEntry(actionName, newLogId, logId, startTimestamp, null,
-                LogStatus.RUNNING, null, comments, null);
+                LogStatus.RUNNING,  comments, null);
         newLogEntry.insertIntoLogTable();
         return newLogEntry;
     }
 
-    public static Future<LogEntry> openLevelAsync(Future<LogEntry> logEntryFuture, final String actionName, final String comments) {
-        long newLogId = LogUtils.getLogSequenceNextVal();
-        Timestamp startTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return logEntryFuture.get().openLevel(actionName, newLogId, comments, startTimestamp);
-            } catch (InterruptedException | ExecutionException e) {
-                throw new RuntimeException(e);
-            }
-        }, LogUtils.logExecutorService);
+    public void complete(final String comments) {
+        closeEntry(LogStatus.COMPLETED, null, comments, new java.sql.Timestamp(System.currentTimeMillis()));
     }
 
-    public void closeLevelSuccess(final String comments) {
-        closeLevel(LogStatus.COMPLETED, null, comments, null, new java.sql.Timestamp(System.currentTimeMillis()));
+    public void fail(final String comments, final Exception exception) {
+        closeEntry(LogStatus.FAILED, exception, comments, new java.sql.Timestamp(System.currentTimeMillis()));
     }
 
-    public static void closeLevelSuccessAsync(Future<LogEntry> logEntryFuture, final String comments) {
-        final Timestamp endTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
-        CompletableFuture.runAsync(() -> {
-            try {
-                logEntryFuture.get().closeLevel(LogStatus.COMPLETED, null, comments, null, endTimestamp);
-            } catch (InterruptedException | ExecutionException e) {
-                throw new RuntimeException(e);
-            }
-        }, LogUtils.logExecutorService);
-    }
-
-    public void closeLevelFail(final String comments, final Exception exception) {
-        closeLevel(LogStatus.FAILED, exception, comments, null, new java.sql.Timestamp(System.currentTimeMillis()));
-    }
-
-    public static void closeLevelFailAsync(Future<LogEntry> logEntryFuture, final String comments, final Exception exception) {
-        final Timestamp endTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
-        CompletableFuture.runAsync(() -> {
-            try {
-                logEntryFuture.get().closeLevel(LogStatus.FAILED, exception, comments, null, endTimestamp);
-            } catch (InterruptedException | ExecutionException e) {
-                throw new RuntimeException(e);
-            }
-        }, LogUtils.logExecutorService);
-    }
-
-    void closeLevel(final LogStatus logStatus, final Exception exception,
-                    final String comments, final Long rowCount, final Timestamp endTimestamp) {
+    void closeEntry(final LogStatus logStatus, final Exception exception,
+                    final String comments, final Timestamp endTimestamp) {
         final String UPDATE_LOG_TABLE_SQL = "UPDATE LOG_TABLE \n" +
                 "        SET    status            = ?\n" +
                 "              ,exception_message = ?\n" +
-                "              ,row_count         = ?\n" +
                 "              ,end_ts            = ?\n" +
                 "              ,comments          = coalesce(comments, '') || coalesce(?, '')\n" +
                 "        WHERE  log_id = ?";
         String exceptionMessage = null;
         if (exception != null) {
-            StringWriter sw = new StringWriter();
-            PrintWriter pw = new PrintWriter(sw);
+            final StringWriter sw = new StringWriter();
+            final PrintWriter pw = new PrintWriter(sw);
             exception.printStackTrace(pw);
             exceptionMessage = sw.toString();
         }
         setExceptionMessage(exceptionMessage);
         setComments(this.comments + comments);
         setLogStatus(logStatus);
-        setRowCount(rowCount);
         setEndTimestamp(endTimestamp);
         try (Connection connection = LogDataSource.getConnection();
              final PreparedStatement preparedStatement = connection.prepareStatement(UPDATE_LOG_TABLE_SQL)) {
             preparedStatement.setString(1, logStatus.getStatus());
             preparedStatement.setString(2, exceptionMessage);
-            preparedStatement.setObject(3, rowCount);
-            preparedStatement.setTimestamp(4, endTimestamp);
-            preparedStatement.setString(5, comments);
-            preparedStatement.setLong(6, logId);
+            preparedStatement.setTimestamp(3, endTimestamp);
+            preparedStatement.setString(4, comments);
+            preparedStatement.setLong(5, logId);
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -165,13 +125,8 @@ public final class LogEntry {
     }
 
     public void info(final String actionName, final String comments) {
-        final LogEntry infoLogEntry = openLevel(actionName, comments);
-        infoLogEntry.closeLevelSuccess(null);
-    }
-
-    public static void infoAsync(Future<LogEntry> logEntryFuture, final String actionName, final String comments) {
-        final Future<LogEntry> infoLogEntryFuture = openLevelAsync(logEntryFuture, actionName, comments);
-        closeLevelSuccessAsync(infoLogEntryFuture, null);
+        final LogEntry infoLogEntry = createChild(actionName, comments);
+        infoLogEntry.complete(null);
     }
 
     void insertIntoLogTable() {
@@ -209,10 +164,6 @@ public final class LogEntry {
 
     private void setLogStatus(LogStatus logStatus) {
         this.logStatus = logStatus;
-    }
-
-    private void setRowCount(Long rowCount) {
-        this.rowCount = rowCount;
     }
 
     private void setComments(String comments) {

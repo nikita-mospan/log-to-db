@@ -1,7 +1,15 @@
 select current_database(), current_schema(), current_user;
 
+drop sequence seq_log_table;
 drop table log_table;
 drop table log_instances;
+
+create sequence seq_log_table
+    start with 1
+    no maxvalue
+    minvalue 1
+    no cycle
+    cache 100;
 
 create table log_instances
 (
@@ -10,8 +18,8 @@ create table log_instances
     start_ts     timestamp(6) not null,
     end_ts       timestamp(6),
     status       varchar(1)   not null,
-    constraint log_instances_pk primary key (start_log_id),
-    constraint log_instances_status_chck check (status in ('C'/*completed*/, 'R'/*running*/, 'F'/*failed*/))
+    constraint c_log_instances_pk primary key (start_log_id),
+    constraint c_log_instances_status_chck check (status in ('C'/*completed*/, 'R'/*running*/, 'F'/*failed*/))
 );
 
 create index log_instances_name_idx on log_instances (name);
@@ -24,12 +32,11 @@ create table log_table
     start_ts          timestamp(6) not null,
     end_ts            timestamp(6),
     status            varchar(1)   not null,
-    row_count         bigint,
     comments          text,
     exception_message varchar(4000),
-    constraint log_table_pk primary key (log_id),
-    constraint log_table_status_chck check (status in ('C'/*completed*/, 'R'/*running*/, 'F'/*failed*/)),
-    constraint log_table_cild_parent_fk foreign key (parent_log_id) references log_table (log_id)
+    constraint c_log_table_pk primary key (log_id),
+    constraint c_log_table_status_chck check (status in ('C'/*completed*/, 'R'/*running*/, 'F'/*failed*/)),
+    constraint c_log_table_parent_fk foreign key (parent_log_id) references log_table (log_id)
 );
 
 create index log_table_parent_id_idx on log_table (parent_log_id);
@@ -45,11 +52,10 @@ WITH RECURSIVE log AS (
            l.start_ts,
            l.end_ts,
            l.status,
-           l.row_count,
            l.comments,
            l.exception_message
     FROM log_table l
-    WHERE l.log_id = 16801
+    WHERE l.log_id = ...
     UNION ALL
     SELECT l.level + 1 as level,
            path || l1.log_id,
@@ -58,8 +64,8 @@ WITH RECURSIVE log AS (
            l1.parent_log_id,
            l1.start_ts,
            l1.end_ts,
+           l.end_ts - l.start_ts as duration,
            l1.status,
-           l1.row_count,
            l1.comments,
            l1.exception_message
     FROM log_table l1
@@ -71,7 +77,6 @@ SELECT
        l.start_ts,
        l.end_ts,
        l.status,
-       l.row_count,
        l.comments,
        l.exception_message
 FROM log l
