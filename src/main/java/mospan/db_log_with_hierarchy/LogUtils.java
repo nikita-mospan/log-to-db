@@ -1,5 +1,8 @@
 package mospan.db_log_with_hierarchy;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.sql.Connection;
@@ -10,6 +13,8 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 
 public class LogUtils {
+
+    private static final Logger logger = LoggerFactory.getLogger(LogUtils.class);
 
     private static final ThreadLocal<Boolean> isFirstLogEntryLocal = new InheritableThreadLocal<>();
     private static final ThreadLocal<Long> startLogIdLocal = new InheritableThreadLocal<>();
@@ -51,6 +56,7 @@ public class LogUtils {
         Timestamp startTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
         insertIntoLogInstances(startLogIdLocal.get(), logInstanceName, startTimestamp);
         openNextLevel(logInstanceName, null);
+        logger.info("startLogId: " + getStartLogId());
     }
 
     public static void openNextLevel(final String actionName, final String comments) {
