@@ -49,13 +49,17 @@ public class LogUtils {
     }
 
     public static void startLog(final String logInstanceName) {
+        startLog(logInstanceName, null);
+    }
+
+    public static void startLog(final String logInstanceName, final String comments) {
         isFirstLogEntryLocal.set(true);
         startLogIdLocal.set(LogUtils.getLogSequenceNextVal());
         currentLogIdLocal.set(startLogIdLocal.get());
         parentLogIdLocal.set(null);
         Timestamp startTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
         insertIntoLogInstances(startLogIdLocal.get(), logInstanceName, startTimestamp);
-        openNextLevel(logInstanceName, null);
+        openNextLevel(logInstanceName, comments);
         logger.info("startLogId: " + getStartLogId());
     }
 
