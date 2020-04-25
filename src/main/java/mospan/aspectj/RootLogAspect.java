@@ -6,9 +6,6 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 
-import java.util.Arrays;
-import java.util.stream.Collectors;
-
 @Aspect
 public class RootLogAspect {
     @Pointcut("@annotation(rootLog) && execution(* *.*(..))")
@@ -19,7 +16,7 @@ public class RootLogAspect {
     public Object around(ProceedingJoinPoint pjp, RootLog rootLog) throws Throwable {
         try {
             LogUtils.startLog(pjp.getSignature().toShortString()
-                    , "Arguments: " + Arrays.stream(pjp.getArgs()).map(Object::toString).collect(Collectors.joining(", ")));
+                    , rootLog.suppressLogArgs() ? null : AspectUtils.getArgsString(pjp.getArgs()));
             Object result = pjp.proceed();
             LogUtils.stopLogSuccess();
             return result;
