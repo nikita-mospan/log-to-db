@@ -18,6 +18,9 @@ public class LogToDbAspect {
             LogUtils.openNextLevel(pjp.getSignature().toShortString(),
                     logToDb.suppressLogArgs() ? null : AspectUtils.getArgsString(pjp.getArgs()));
             Object result = pjp.proceed();
+            if (!logToDb.suppressLogResult()) {
+                LogUtils.addComments("\nResult: " + result.toString());
+            }
             LogUtils.closeLevelSuccess();
             return result;
         } catch (Exception e) {

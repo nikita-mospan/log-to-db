@@ -9,4 +9,5 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 public @interface LogToDb {
     boolean suppressLogArgs() default false;
+    boolean suppressLogResult() default false;
 }
