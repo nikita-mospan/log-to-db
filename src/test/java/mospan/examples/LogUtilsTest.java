@@ -1,8 +1,8 @@
 package mospan.examples;
 
-import mospan.aspectj.LogToDb;
-import mospan.aspectj.RootLog;
-import mospan.db_log_with_hierarchy.LogUtils;
+import mospan.log_to_db.aspectj.LogToDb;
+import mospan.log_to_db.aspectj.RootLog;
+import mospan.log_to_db.utils.LogUtils;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

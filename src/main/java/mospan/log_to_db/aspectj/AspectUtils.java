@@ -1,4 +1,4 @@
-package mospan.aspectj;
+package mospan.log_to_db.aspectj;
 
 import java.util.Arrays;
 import java.util.stream.Collectors;

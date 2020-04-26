@@ -1,6 +1,6 @@
-package mospan.aspectj;
+package mospan.log_to_db.aspectj;
 
-import mospan.db_log_with_hierarchy.LogUtils;
+import mospan.log_to_db.utils.LogUtils;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;

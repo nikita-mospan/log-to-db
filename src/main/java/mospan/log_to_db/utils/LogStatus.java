@@ -1,4 +1,4 @@
-package mospan.db_log_with_hierarchy;
+package mospan.log_to_db.utils;
 
 public enum LogStatus {
     RUNNING("R"),

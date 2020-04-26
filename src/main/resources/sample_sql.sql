@@ -64,7 +64,6 @@ WITH RECURSIVE log AS (
            l1.parent_log_id,
            l1.start_ts,
            l1.end_ts,
-           l.end_ts - l.start_ts as duration,
            l1.status,
            l1.comments,
            l1.exception_message
@@ -76,6 +75,7 @@ SELECT
        l.action_name,
        l.start_ts,
        l.end_ts,
+       l.end_ts - l.start_ts as duration,
        l.status,
        l.comments,
        l.exception_message
