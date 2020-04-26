@@ -250,16 +250,17 @@ In order to make this work you have to define aspectj-maven-plugin and add *log-
 Additionaly it is better to disable default maven compiler plugin:
 
 ```xml
-<plugin>
-    <groupId>org.apache.maven.plugins</groupId>
-    <artifactId>maven-compiler-plugin</artifactId>
-    <version>3.8.1</version>
-    <executions>
-        <execution>
-            <id>default-compile</id>
-            <phase>none</phase>
-        </execution>
-    </executions>
+<plugins>
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.8.1</version>
+        <executions>
+            <execution>
+                <id>default-compile</id>
+                <phase>none</phase>
+            </execution>
+        </executions>
     </plugin>
     <plugin>
         <groupId>org.codehaus.mojo</groupId>
@@ -282,6 +283,7 @@ Additionaly it is better to disable default maven compiler plugin:
             </execution>
         </executions>
     </plugin>
+</plugins>
 ```
 
 You should also add AspectJ runtime library:
