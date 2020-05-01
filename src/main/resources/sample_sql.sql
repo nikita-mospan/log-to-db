@@ -13,7 +13,7 @@ create sequence seq_log_table
 
 create table log_instances
 (
-    start_log_id bigserial    not null,
+    start_log_id bigint    not null,
     name         varchar(100) not null,
     start_ts     timestamp(6) not null,
     end_ts       timestamp(6),
@@ -27,7 +27,7 @@ create index log_instances_name_idx on log_instances (name);
 create table log_table
 (
     action_name       varchar(64)  not null,
-    log_id            bigserial    not null,
+    log_id            bigint    not null,
     parent_log_id     bigint,
     start_ts          timestamp(6) not null,
     end_ts            timestamp(6),
