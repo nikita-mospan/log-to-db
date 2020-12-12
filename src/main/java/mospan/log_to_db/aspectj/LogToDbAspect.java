@@ -12,7 +12,7 @@ public class LogToDbAspect {
     public void logToDbPointcut(LogToDb logToDb) {
     }
 
-    @Around(value = "logToDbPointcut(logToDb)")
+    @Around(value = "logToDbPointcut(logToDb)", argNames = "pjp,logToDb")
     public Object around(ProceedingJoinPoint pjp, LogToDb logToDb) throws Throwable {
         try {
             LogUtils.openNextLevel(pjp.getSignature().toShortString(),

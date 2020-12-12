@@ -12,7 +12,7 @@ public class RootLogAspect {
     public void rootLogPointcut(RootLog rootLog) {
     }
 
-    @Around(value = "rootLogPointcut(rootLog)")
+    @Around(value = "rootLogPointcut(rootLog)", argNames = "pjp,rootLog")
     public Object around(ProceedingJoinPoint pjp, RootLog rootLog) throws Throwable {
         try {
             LogUtils.startLog(pjp.getSignature().toShortString()
